@@ -897,6 +897,487 @@ WHERE Salary > (
 );
 ```
 
+## Wildcards và Pattern Matching
+
+### 68. Sử dụng LIKE với Wildcards / Using LIKE with Wildcards
+
+**Trả lời / Answer:**
+
+- **%:** Đại diện cho 0 hoặc nhiều ký tự / Represents zero or more characters
+- **_:** Đại diện cho 1 ký tự / Represents one character
+- **[]:** Đại diện cho 1 ký tự trong tập / Represents one character in a set
+- **[^]:** Đại diện cho 1 ký tự không có trong tập / Represents one character NOT in a set
+
+```sql
+-- Tên bắt đầu bằng 'J' / Name starts with 'J'
+SELECT * FROM Employee WHERE FirstName LIKE 'J%';
+
+-- Tên kết thúc bằng 'n' / Name ends with 'n'
+SELECT * FROM Employee WHERE FirstName LIKE '%n';
+
+-- Tên có chữ 'oh' ở giữa / Name contains 'oh'
+SELECT * FROM Employee WHERE FirstName LIKE '%oh%';
+
+-- Tên có đúng 4 ký tự / Name has exactly 4 characters
+SELECT * FROM Employee WHERE FirstName LIKE '____';
+
+-- Tên bắt đầu bằng J, A, hoặc M / Name starts with J, A, or M
+SELECT * FROM Employee WHERE FirstName LIKE '[JAM]%';
+
+-- Tên không bắt đầu bằng J / Name does not start with J
+SELECT * FROM Employee WHERE FirstName LIKE '[^J]%';
+```
+
+## UNION và SET Operations
+
+### 69. UNION và UNION ALL / UNION and UNION ALL
+
+**Trả lời / Answer:**
+
+- **UNION:** Kết hợp kết quả từ 2 query, loại bỏ duplicate / Combines results from 2 queries, removes duplicates
+- **UNION ALL:** Kết hợp kết quả từ 2 query, giữ duplicate / Combines results from 2 queries, keeps duplicates
+
+```sql
+-- UNION: Loại bỏ duplicate
+-- UNION: Removes duplicates
+SELECT FirstName FROM Employee
+UNION
+SELECT FirstName FROM Manager;
+
+-- UNION ALL: Giữ duplicate
+-- UNION ALL: Keeps duplicates
+SELECT FirstName FROM Employee
+UNION ALL
+SELECT FirstName FROM Manager;
+```
+
+### 70. INTERSECT và EXCEPT / INTERSECT and EXCEPT
+
+```sql
+-- INTERSECT: Lấy các giá trị chung giữa 2 query
+-- INTERSECT: Gets common values between 2 queries
+SELECT FirstName FROM Employee
+INTERSECT
+SELECT FirstName FROM Manager;
+
+-- EXCEPT: Lấy các giá trị có trong query đầu nhưng không có trong query sau
+-- EXCEPT: Gets values in first query but not in second
+SELECT FirstName FROM Employee
+EXCEPT
+SELECT FirstName FROM Manager;
+```
+
+## Normalization / Chuẩn hóa dữ liệu
+
+### 71. Database Normalization là gì? / What is Database Normalization?
+
+**Trả lời / Answer:** Normalization là quá trình tổ chức dữ liệu trong database để giảm redundancy và cải thiện data integrity.
+
+**Answer:** Normalization is the process of organizing data in a database to reduce redundancy and improve data integrity.
+
+### 72. Các Normal Forms cơ bản / Basic Normal Forms
+
+**Trả lời / Answer:**
+
+- **1NF (First Normal Form):** Mỗi cell chỉ chứa 1 giá trị atomic / Each cell contains only one atomic value
+- **2NF (Second Normal Form):** Đạt 1NF + không có partial dependency / Meets 1NF + no partial dependency
+- **3NF (Third Normal Form):** Đạt 2NF + không có transitive dependency / Meets 2NF + no transitive dependency
+
+**Example:**
+
+```sql
+-- Không chuẩn hóa (Not normalized)
+CREATE TABLE Orders_Bad (
+    OrderID INT,
+    CustomerName VARCHAR(100),
+    CustomerPhone VARCHAR(20),
+    Product1 VARCHAR(100),
+    Product2 VARCHAR(100)
+);
+
+-- Chuẩn hóa (Normalized)
+CREATE TABLE Customers (
+    CustomerID INT PRIMARY KEY,
+    CustomerName VARCHAR(100),
+    CustomerPhone VARCHAR(20)
+);
+
+CREATE TABLE Orders (
+    OrderID INT PRIMARY KEY,
+    CustomerID INT,
+    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID)
+);
+
+CREATE TABLE OrderDetails (
+    OrderID INT,
+    ProductID INT,
+    Quantity INT,
+    PRIMARY KEY (OrderID, ProductID)
+);
+```
+
+## Window Functions cơ bản / Basic Window Functions
+
+### 73. Window Functions là gì? / What are Window Functions?
+
+**Trả lời / Answer:** Window functions thực hiện tính toán trên một tập hợp rows liên quan đến current row, không làm thay đổi số lượng rows.
+
+**Answer:** Window functions perform calculations on a set of rows related to the current row, without changing the number of rows.
+
+### 74. ROW_NUMBER, RANK, DENSE_RANK
+
+```sql
+SELECT
+    FirstName,
+    LastName,
+    Salary,
+    DepartmentID,
+    -- ROW_NUMBER: Đánh số duy nhất cho mỗi row
+    -- ROW_NUMBER: Assigns unique number to each row
+    ROW_NUMBER() OVER (PARTITION BY DepartmentID ORDER BY Salary DESC) as RowNum,
+    
+    -- RANK: Đánh số có gaps khi có ties
+    -- RANK: Assigns numbers with gaps when ties exist
+    RANK() OVER (PARTITION BY DepartmentID ORDER BY Salary DESC) as Rank,
+    
+    -- DENSE_RANK: Đánh số không có gaps
+    -- DENSE_RANK: Assigns numbers without gaps
+    DENSE_RANK() OVER (PARTITION BY DepartmentID ORDER BY Salary DESC) as DenseRank
+FROM Employee;
+```
+
+### 75. LAG và LEAD / LAG and LEAD
+
+```sql
+-- LAG: Truy cập giá trị của row trước đó
+-- LAG: Access value from previous row
+-- LEAD: Truy cập giá trị của row tiếp theo
+-- LEAD: Access value from next row
+
+SELECT
+    EmployeeID,
+    FirstName,
+    Salary,
+    LAG(Salary, 1, 0) OVER (ORDER BY EmployeeID) as PreviousSalary,
+    LEAD(Salary, 1, 0) OVER (ORDER BY EmployeeID) as NextSalary,
+    Salary - LAG(Salary, 1, 0) OVER (ORDER BY EmployeeID) as SalaryDiff
+FROM Employee;
+```
+
+## Data Types nâng cao / Advanced Data Types
+
+### 76. Các kiểu dữ liệu số / Numeric Data Types
+
+```sql
+-- INT, BIGINT, SMALLINT, TINYINT
+-- DECIMAL(p,s), NUMERIC(p,s): Số thập phân chính xác
+-- FLOAT, REAL: Số thập phân gần đúng
+-- MONEY, SMALLMONEY: Tiền tệ
+
+CREATE TABLE ProductPricing (
+    ProductID INT,
+    Price DECIMAL(10,2),      -- 10 chữ số, 2 số thập phân
+    Tax FLOAT,                 -- Số thập phân gần đúng
+    TotalCost MONEY            -- Lưu trữ tiền tệ
+);
+```
+
+### 77. Các kiểu dữ liệu chuỗi / String Data Types
+
+```sql
+-- CHAR(n): Chuỗi độ dài cố định, thêm spaces nếu thiếu
+-- VARCHAR(n): Chuỗi độ dài thay đổi, không thêm spaces
+-- NVARCHAR(n): Unicode, hỗ trợ đa ngôn ngữ
+-- TEXT: Chuỗi lớn (deprecated, nên dùng VARCHAR(MAX))
+
+CREATE TABLE Documents (
+    Title VARCHAR(100),        -- Tiêu đề (ASCII)
+    TitleUnicode NVARCHAR(100),-- Tiêu đề (Unicode) 
+    Content VARCHAR(MAX)       -- Nội dung lớn
+);
+```
+
+### 78. Các kiểu dữ liệu ngày tháng / Date and Time Data Types
+
+```sql
+-- DATE: Chỉ ngày (YYYY-MM-DD)
+-- TIME: Chỉ giờ (HH:MM:SS)
+-- DATETIME: Ngày và giờ
+-- DATETIME2: Datetime chính xác hơn
+-- DATETIMEOFFSET: Datetime với timezone
+-- SMALLDATETIME: Datetime ít chính xác hơn
+
+CREATE TABLE Events (
+    EventID INT,
+    EventDate DATE,
+    EventTime TIME,
+    CreatedAt DATETIME2,
+    ScheduledAt DATETIMEOFFSET
+);
+```
+
+## Temporary Tables và Table Variables
+
+### 79. Local Temporary Tables (#)
+
+```sql
+-- Temporary table chỉ tồn tại trong session hiện tại
+-- Temporary table exists only in current session
+
+CREATE TABLE #TempEmployee (
+    EmployeeID INT,
+    FirstName VARCHAR(50),
+    Salary DECIMAL(10,2)
+);
+
+INSERT INTO #TempEmployee
+SELECT EmployeeID, FirstName, Salary
+FROM Employee
+WHERE Salary > 50000;
+
+SELECT * FROM #TempEmployee;
+
+-- Tự động xóa khi session kết thúc
+-- Automatically dropped when session ends
+DROP TABLE #TempEmployee;
+```
+
+### 80. Global Temporary Tables (##)
+
+```sql
+-- Temporary table có thể truy cập từ mọi session
+-- Temporary table accessible from all sessions
+
+CREATE TABLE ##GlobalTempEmployee (
+    EmployeeID INT,
+    FirstName VARCHAR(50)
+);
+
+-- Có thể truy cập từ session khác
+-- Can be accessed from other sessions
+-- Tự động xóa khi tất cả sessions kết thúc
+-- Automatically dropped when all sessions end
+```
+
+### 81. Table Variables (@)
+
+```sql
+-- Table variable: nhanh hơn temp table cho dataset nhỏ
+-- Table variable: faster than temp table for small datasets
+
+DECLARE @EmployeeTable TABLE (
+    EmployeeID INT,
+    FirstName VARCHAR(50),
+    Salary DECIMAL(10,2)
+);
+
+INSERT INTO @EmployeeTable
+SELECT EmployeeID, FirstName, Salary
+FROM Employee
+WHERE Salary > 50000;
+
+SELECT * FROM @EmployeeTable;
+
+-- Tự động xóa sau khi batch kết thúc
+-- Automatically cleared after batch ends
+```
+
+## Common Table Expressions (CTE) nâng cao
+
+### 82. Recursive CTE
+
+```sql
+-- Tìm hierarchy của nhân viên
+-- Find employee hierarchy
+
+WITH EmployeeHierarchy AS (
+    -- Anchor member: Tìm manager cao nhất
+    -- Anchor member: Find top manager
+    SELECT EmployeeID, FirstName, ManagerID, 1 as Level
+    FROM Employee
+    WHERE ManagerID IS NULL
+    
+    UNION ALL
+    
+    -- Recursive member: Tìm employees thuộc managers
+    -- Recursive member: Find employees under managers
+    SELECT e.EmployeeID, e.FirstName, e.ManagerID, eh.Level + 1
+    FROM Employee e
+    INNER JOIN EmployeeHierarchy eh ON e.ManagerID = eh.EmployeeID
+)
+SELECT * FROM EmployeeHierarchy
+ORDER BY Level, EmployeeID;
+```
+
+### 83. Multiple CTEs
+
+```sql
+-- Sử dụng nhiều CTE trong một query
+-- Use multiple CTEs in one query
+
+WITH HighEarners AS (
+    SELECT EmployeeID, FirstName, Salary, DepartmentID
+    FROM Employee
+    WHERE Salary > 60000
+),
+DeptStats AS (
+    SELECT DepartmentID, AVG(Salary) as AvgSalary
+    FROM Employee
+    GROUP BY DepartmentID
+)
+SELECT 
+    h.FirstName,
+    h.Salary,
+    d.AvgSalary,
+    h.Salary - d.AvgSalary as SalaryDiff
+FROM HighEarners h
+INNER JOIN DeptStats d ON h.DepartmentID = d.DepartmentID;
+```
+
+## Pivot và Unpivot
+
+### 84. PIVOT - Chuyển rows thành columns
+
+```sql
+-- Chuyển dữ liệu từ rows sang columns
+-- Convert data from rows to columns
+
+SELECT *
+FROM (
+    SELECT DepartmentName, YEAR(HireDate) as Year
+    FROM Employee e
+    INNER JOIN Department d ON e.DepartmentID = d.DepartmentID
+) AS SourceTable
+PIVOT (
+    COUNT(Year)
+    FOR Year IN ([2020], [2021], [2022], [2023])
+) AS PivotTable;
+```
+
+### 85. UNPIVOT - Chuyển columns thành rows
+
+```sql
+-- Chuyển dữ liệu từ columns sang rows
+-- Convert data from columns to rows
+
+SELECT Department, Year, EmployeeCount
+FROM (
+    SELECT DepartmentName, [2020], [2021], [2022], [2023]
+    FROM DepartmentYearlyCounts
+) AS SourceTable
+UNPIVOT (
+    EmployeeCount FOR Year IN ([2020], [2021], [2022], [2023])
+) AS UnpivotTable;
+```
+
+## Data Modification với OUTPUT
+
+### 86. OUTPUT Clause
+
+```sql
+-- Xem dữ liệu bị ảnh hưởng bởi INSERT/UPDATE/DELETE
+-- View data affected by INSERT/UPDATE/DELETE
+
+-- INSERT với OUTPUT
+INSERT INTO Employee (EmployeeID, FirstName, LastName, Salary)
+OUTPUT INSERTED.EmployeeID, INSERTED.FirstName, INSERTED.Salary
+VALUES (100, 'John', 'Doe', 50000);
+
+-- UPDATE với OUTPUT
+UPDATE Employee
+SET Salary = Salary * 1.1
+OUTPUT DELETED.Salary as OldSalary, INSERTED.Salary as NewSalary
+WHERE EmployeeID = 1;
+
+-- DELETE với OUTPUT
+DELETE FROM Employee
+OUTPUT DELETED.*
+WHERE EmployeeID = 100;
+```
+
+## Best Practices cho Junior Developers
+
+### 87. Coding Standards và Best Practices
+
+**Trả lời / Answer:**
+
+**1. Đặt tên có ý nghĩa / Use Meaningful Names:**
+```sql
+-- Tốt / Good
+SELECT EmployeeID, FirstName, LastName FROM Employee;
+
+-- Không tốt / Bad
+SELECT e1, e2, e3 FROM tbl1;
+```
+
+**2. Sử dụng JOIN thay vì WHERE cho nhiều bảng / Use JOIN instead of WHERE for multiple tables:**
+```sql
+-- Tốt / Good
+SELECT e.FirstName, d.DepartmentName
+FROM Employee e
+INNER JOIN Department d ON e.DepartmentID = d.DepartmentID;
+
+-- Không tốt / Bad (implicit join)
+SELECT e.FirstName, d.DepartmentName
+FROM Employee e, Department d
+WHERE e.DepartmentID = d.DepartmentID;
+```
+
+**3. Luôn sử dụng schema name:**
+```sql
+-- Tốt / Good
+SELECT * FROM dbo.Employee;
+
+-- Không tốt / Bad
+SELECT * FROM Employee;
+```
+
+**4. Tránh SELECT * trong production code:**
+```sql
+-- Tốt / Good
+SELECT EmployeeID, FirstName, LastName FROM Employee;
+
+-- Không tốt / Bad
+SELECT * FROM Employee;
+```
+
+**5. Sử dụng EXISTS thay vì IN cho subqueries lớn:**
+```sql
+-- Tốt / Good (faster)
+SELECT * FROM Employee e
+WHERE EXISTS (
+    SELECT 1 FROM Department d 
+    WHERE d.DepartmentID = e.DepartmentID
+);
+
+-- Có thể chậm hơn / Can be slower
+SELECT * FROM Employee
+WHERE DepartmentID IN (SELECT DepartmentID FROM Department);
+```
+
+### 88. Security Best Practices
+
+```sql
+-- 1. Luôn sử dụng parameterized queries để tránh SQL injection
+-- Always use parameterized queries to prevent SQL injection
+
+-- 2. Grant permissions tối thiểu cần thiết
+-- Grant minimum necessary permissions
+GRANT SELECT, INSERT ON Employee TO AppUser;
+
+-- 3. Không lưu passwords dạng plain text
+-- Never store passwords as plain text
+-- Sử dụng HASHBYTES
+CREATE TABLE Users (
+    UserID INT,
+    Username VARCHAR(50),
+    PasswordHash VARBINARY(64)
+);
+
+INSERT INTO Users (UserID, Username, PasswordHash)
+VALUES (1, 'john', HASHBYTES('SHA2_256', 'mypassword'));
+```
+
 ## Tips cho phỏng vấn / Interview Tips
 
 1. **Hiểu rõ cú pháp cơ bản / Understand basic syntax**
@@ -909,3 +1390,15 @@ WHERE Salary > (
 8. **Hiểu về constraints và data integrity / Understand constraints and data integrity**
 9. **Thực hành với stored procedures và views / Practice with stored procedures and views**
 10. **Biết cách tối ưu câu lệnh SQL đơn giản / Know how to optimize simple SQL statements**
+11. **Thành thạo với Window Functions và CTEs / Master Window Functions and CTEs**
+12. **Hiểu về normalization và database design / Understand normalization and database design**
+13. **Biết cách sử dụng temporary tables và table variables / Know how to use temporary tables and table variables**
+14. **Thực hành pattern matching với wildcards / Practice pattern matching with wildcards**
+15. **Hiểu về security best practices / Understand security best practices**
+
+## Tài liệu tham khảo / References
+
+- Microsoft SQL Server Documentation
+- SQL Server Performance Tuning
+- Database Design Fundamentals
+- SQL Coding Standards
