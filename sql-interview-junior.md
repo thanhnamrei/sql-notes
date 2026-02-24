@@ -739,28 +739,55 @@ DROP TABLE #TempGrouped;
 
 ### 62. Debug stored procedures / Debugging stored procedures
 
+#### 62.1 Thêm log & bắt lỗi trong SP / Add logging & error handling inside SP
+
 ```sql
--- Thêm debugging vào stored procedures
--- Add debugging to stored procedures
-CREATE PROCEDURE DebugExample
-    @Parameter1 INT
+-- Thêm log, thống kê và TRY/CATCH để thấy lỗi & hiệu suất
+CREATE OR ALTER PROCEDURE dbo.DebugExample
+    @DepartmentId INT
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET STATISTICS IO ON;  -- Xem I/O
+    SET STATISTICS TIME ON; -- Xem CPU/elapsed time
 
-    PRINT 'Debug: Starting procedure with parameter: ' + CAST(@Parameter1 AS VARCHAR(10));
+    PRINT 'Debug start, @DepartmentId = ' + CAST(@DepartmentId AS varchar(10));
 
-    -- Logic của bạn ở đây
-    -- Your logic here
-    DECLARE @Result INT;
-    SELECT @Result = COUNT(*) FROM Employee WHERE DepartmentID = @Parameter1;
+    BEGIN TRY
+        DECLARE @EmployeeCount int;
+        SELECT @EmployeeCount = COUNT(*)
+        FROM Employee
+        WHERE DepartmentID = @DepartmentId;
 
-    PRINT 'Debug: Found ' + CAST(@Result AS VARCHAR(10)) + ' employees';
+        PRINT 'Employees in dept: ' + CAST(@EmployeeCount AS varchar(10));
 
-    -- Tiếp tục với logic của bạn
-    -- Continue with your logic
+        -- Business logic giả định
+        IF @EmployeeCount = 0
+            THROW 50001, 'No employees in department', 1;  -- Gây lỗi có kiểm soát
+
+        -- Tiếp tục xử lý
+        SELECT EmployeeID, FirstName, LastName, Salary
+        FROM Employee
+        WHERE DepartmentID = @DepartmentId;
+    END TRY
+    BEGIN CATCH
+        PRINT 'ErrorNumber=' + CAST(ERROR_NUMBER() AS varchar(10))
+            + ' Message=' + ERROR_MESSAGE();
+        THROW; -- Ném lại để client thấy lỗi
+    END CATCH;
+
+    SET STATISTICS IO OFF;
+    SET STATISTICS TIME OFF;
 END
 ```
+
+#### 62.2 Debug bằng SSMS Debugger / Use SSMS debugger (on-prem)
+
+- Mở SP, đặt breakpoint (F9) tại dòng cần dừng
+- Nhấn Alt+F5 (Start Debugging), nhập tham số và chạy
+- Dùng Step Into/Over (F11/F10) để đi từng lệnh
+- Xem biến ở Locals/Watch, xem Call Stack; kiểm tra giá trị tham số và biến tạm
+- Gỡ breakpoint, chạy lại để xác nhận
 
 ### 63. Debug với TRY-CATCH nâng cao / Advanced debugging with TRY-CATCH
 
@@ -904,7 +931,7 @@ WHERE Salary > (
 **Trả lời / Answer:**
 
 - **%:** Đại diện cho 0 hoặc nhiều ký tự / Represents zero or more characters
-- **_:** Đại diện cho 1 ký tự / Represents one character
+- **\_:** Đại diện cho 1 ký tự / Represents one character
 - **[]:** Đại diện cho 1 ký tự trong tập / Represents one character in a set
 - **[^]:** Đại diện cho 1 ký tự không có trong tập / Represents one character NOT in a set
 
@@ -1035,11 +1062,11 @@ SELECT
     -- ROW_NUMBER: Đánh số duy nhất cho mỗi row
     -- ROW_NUMBER: Assigns unique number to each row
     ROW_NUMBER() OVER (PARTITION BY DepartmentID ORDER BY Salary DESC) as RowNum,
-    
+
     -- RANK: Đánh số có gaps khi có ties
     -- RANK: Assigns numbers with gaps when ties exist
     RANK() OVER (PARTITION BY DepartmentID ORDER BY Salary DESC) as Rank,
-    
+
     -- DENSE_RANK: Đánh số không có gaps
     -- DENSE_RANK: Assigns numbers without gaps
     DENSE_RANK() OVER (PARTITION BY DepartmentID ORDER BY Salary DESC) as DenseRank
@@ -1092,7 +1119,7 @@ CREATE TABLE ProductPricing (
 
 CREATE TABLE Documents (
     Title VARCHAR(100),        -- Tiêu đề (ASCII)
-    TitleUnicode NVARCHAR(100),-- Tiêu đề (Unicode) 
+    TitleUnicode NVARCHAR(100),-- Tiêu đề (Unicode)
     Content VARCHAR(MAX)       -- Nội dung lớn
 );
 ```
@@ -1196,9 +1223,9 @@ WITH EmployeeHierarchy AS (
     SELECT EmployeeID, FirstName, ManagerID, 1 as Level
     FROM Employee
     WHERE ManagerID IS NULL
-    
+
     UNION ALL
-    
+
     -- Recursive member: Tìm employees thuộc managers
     -- Recursive member: Find employees under managers
     SELECT e.EmployeeID, e.FirstName, e.ManagerID, eh.Level + 1
@@ -1225,7 +1252,7 @@ DeptStats AS (
     FROM Employee
     GROUP BY DepartmentID
 )
-SELECT 
+SELECT
     h.FirstName,
     h.Salary,
     d.AvgSalary,
@@ -1302,6 +1329,7 @@ WHERE EmployeeID = 100;
 **Trả lời / Answer:**
 
 **1. Đặt tên có ý nghĩa / Use Meaningful Names:**
+
 ```sql
 -- Tốt / Good
 SELECT EmployeeID, FirstName, LastName FROM Employee;
@@ -1311,6 +1339,7 @@ SELECT e1, e2, e3 FROM tbl1;
 ```
 
 **2. Sử dụng JOIN thay vì WHERE cho nhiều bảng / Use JOIN instead of WHERE for multiple tables:**
+
 ```sql
 -- Tốt / Good
 SELECT e.FirstName, d.DepartmentName
@@ -1324,6 +1353,7 @@ WHERE e.DepartmentID = d.DepartmentID;
 ```
 
 **3. Luôn sử dụng schema name:**
+
 ```sql
 -- Tốt / Good
 SELECT * FROM dbo.Employee;
@@ -1332,7 +1362,8 @@ SELECT * FROM dbo.Employee;
 SELECT * FROM Employee;
 ```
 
-**4. Tránh SELECT * trong production code:**
+**4. Tránh SELECT \* trong production code:**
+
 ```sql
 -- Tốt / Good
 SELECT EmployeeID, FirstName, LastName FROM Employee;
@@ -1342,11 +1373,12 @@ SELECT * FROM Employee;
 ```
 
 **5. Sử dụng EXISTS thay vì IN cho subqueries lớn:**
+
 ```sql
 -- Tốt / Good (faster)
 SELECT * FROM Employee e
 WHERE EXISTS (
-    SELECT 1 FROM Department d 
+    SELECT 1 FROM Department d
     WHERE d.DepartmentID = e.DepartmentID
 );
 
